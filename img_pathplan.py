@@ -71,7 +71,7 @@ def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
     
     return path
 
-def plot_potential_field(potential_field, start, goal, path=None):
+def plot_pathplan(potential_field, start, goal, path=None):
 
     plt.figure(figsize=(10, 10))
     # plt.imshow(potential_field, cmap="coolwarm", origin="lower")
@@ -118,4 +118,4 @@ if __name__=='__main__':
 
     path = plan_path(recovered_potential_field, start, goal, map_size, step_size, tolerance) # 経路計画
     print(path)
-    plot_potential_field(recovered_potential_field, start, goal, path) # ヒートマップの表示と経路を可視化
+    plot_pathplan(recovered_potential_field, start, goal, path) # ヒートマップの表示と経路を可視化
