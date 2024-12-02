@@ -6,7 +6,6 @@ from scipy.ndimage import gaussian_filter
 np.set_printoptions(
     threshold=np.inf,  # 配列の省略を無効化
     formatter={'float_kind': lambda x: f"{x:.6f}"}  # 小数点6桁に統一
-
 )
 
 def generate_map(size, obstacle_count, large_obstacle_count, large_obstacle_size, safe_distance):
@@ -105,9 +104,9 @@ def compute_potential_field(grid, start, goal, obstacles, max_potential, min_pot
 
 def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
 
-    current_position = np.array(start, dtype=float)
-    path = [start]
-    velocity = np.array([0.0, 0.0])
+    current_position = np.array(start, dtype=float) # 現在位置
+    path = [start] # 経路
+    velocity = np.array([0.0, 0.0]) # 速度
     max_iterations = 1000  # 最大試行回数
 
     for _ in range(max_iterations):
@@ -117,16 +116,16 @@ def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
             break
 
         # 現在位置の勾配を計算
-        x, y = int(current_position[0]), int(current_position[1])
-        grad_x = potential_field[min(x + 1, map_size - 1), y] - potential_field[max(x - 1, 0), y]
-        grad_y = potential_field[x, min(y + 1, map_size - 1)] - potential_field[x, max(y - 1, 0)]
-        gradient = np.array([grad_x, grad_y])
+        x, y = int(current_position[0]), int(current_position[1]) # 現在位置のx,y座標
+        grad_x = potential_field[min(x + 1, map_size - 1), y] - potential_field[max(x - 1, 0), y] # x方向の勾配
+        grad_y = potential_field[x, min(y + 1, map_size - 1)] - potential_field[x, max(y - 1, 0)] # y方向の勾配
+        gradient = np.array([grad_x, grad_y]) # 勾配
 
         # 速度と位置の更新
-        acceleration = -gradient / np.linalg.norm(gradient + 1e-5)  # 正規化
-        velocity = velocity * 0.9 + acceleration  # 慣性を加味
-        velocity = velocity / np.linalg.norm(velocity + 1e-5) * step_size  # 正規化してステップサイズ適用
-        current_position += velocity
+        acceleration = -gradient / np.linalg.norm(gradient + 1e-5) # 単位時間あたりの加速度
+        velocity = velocity * 0.9 + acceleration # 単位時間あたりの速度
+        velocity = velocity / np.linalg.norm(velocity + 1e-5) * step_size # 単位時間あたりの位置
+        current_position += velocity # 移動後の位置を算出
 
         # 境界条件を適用
         current_position = np.clip(current_position, 0, map_size - 1)
@@ -212,23 +211,23 @@ if __name__=='__main__':
     obstacle_count = 5  # 小さめの障害物の数
     large_obstacle_count = 10 # 大きめの障害物の数
     large_obstacle_size = 3 # 大きめの障害物のサイズ
-    safe_distance = 5
+    safe_distance = 5 # 安全距離
 
     # ポテンシャルフィールドの設定
     max_potential = 1.0
     min_potential = -1.0
-    sigma = 0.5
+    sigma = 0.5 # ポテンシャルの広がりを調整するパラメータ
     
     # ロボットの移動パラメータ
     step_size = 1.0  # ロボットのステップサイズ
     tolerance = 0.5  # ゴールに到達する許容距離
 
-    # メイン処理
+    # データ作成のループ
     for i in range(num):
 
-        map_path = "./env_" + str(i) + ".png"
-        pot_path = "./pot_" + str(i) + ".png"
-        out_path = "./plan_" + str(i) + ".png"
+        map_path = "./env_" + str(i) + ".png" # 環境マップの保存パス
+        pot_path = "./pot_" + str(i) + ".png" # ポテンシャルフィールドの保存パス
+        out_path = "./plan_" + str(i) + ".png" # 計画した経路の保存パス
 
         grid, start, goal, obstacles = generate_map(map_size, obstacle_count, large_obstacle_count, large_obstacle_size, safe_distance) # 環境マップを作成
         potential_field = compute_potential_field(grid, start, goal, obstacles, max_potential, min_potential, sigma) # ポテンシャルフィールドを計算

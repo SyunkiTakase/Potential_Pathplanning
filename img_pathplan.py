@@ -35,9 +35,9 @@ def load_potential_field_from_heatmap(image_path, cmap_name="jet", vmin=-1, vmax
 
 def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
 
-    current_position = np.array(start, dtype=float)
-    path = [start]
-    velocity = np.array([0.0, 0.0])
+    current_position = np.array(start, dtype=float) # 現在位置
+    path = [start] # 経路
+    velocity = np.array([0.0, 0.0]) # 速度
     max_iterations = 1000  # 最大試行回数
 
     for _ in range(max_iterations):
@@ -47,16 +47,16 @@ def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
             break
 
         # 現在位置の勾配を計算
-        x, y = int(current_position[0]), int(current_position[1])
-        grad_x = potential_field[min(x + 1, map_size - 1), y] - potential_field[max(x - 1, 0), y]
-        grad_y = potential_field[x, min(y + 1, map_size - 1)] - potential_field[x, max(y - 1, 0)]
-        gradient = np.array([grad_x, grad_y])
+        x, y = int(current_position[0]), int(current_position[1]) # 現在位置のx,y座標
+        grad_x = potential_field[min(x + 1, map_size - 1), y] - potential_field[max(x - 1, 0), y] # x方向の勾配
+        grad_y = potential_field[x, min(y + 1, map_size - 1)] - potential_field[x, max(y - 1, 0)] # y方向の勾配
+        gradient = np.array([grad_x, grad_y]) # 勾配
 
         # 速度と位置の更新
-        acceleration = -gradient / np.linalg.norm(gradient + 1e-5)  # 正規化
-        velocity = velocity * 0.9 + acceleration  # 慣性を加味
-        velocity = velocity / np.linalg.norm(velocity + 1e-5) * step_size  # 正規化してステップサイズ適用
-        current_position += velocity
+        acceleration = -gradient / np.linalg.norm(gradient + 1e-5) # 単位時間あたりの加速度
+        velocity = velocity * 0.9 + acceleration # 単位時間あたりの速度
+        velocity = velocity / np.linalg.norm(velocity + 1e-5) * step_size # 単位時間あたりの位置
+        current_position += velocity # 移動後の位置を算出
 
         # 境界条件を適用
         current_position = np.clip(current_position, 0, map_size - 1)
