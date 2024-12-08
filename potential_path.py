@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from scipy.ndimage import gaussian_filter
+from time import time
+from PIL import Image
 
 np.set_printoptions(
     threshold=np.inf,  # 配列の省略を無効化
@@ -79,7 +81,7 @@ def compute_potential_field(grid, start, goal, obstacles, max_potential, min_pot
 
     # 障害物や壁のポテンシャルを設定
     for obs in obstacles:
-        potential_field[obs] = max_potential 
+        potential_field[obs] = max_potential
 
     # 他のポテンシャル(ゴールと障害物の影響)を計算
     for x in range(size):
@@ -99,7 +101,7 @@ def compute_potential_field(grid, start, goal, obstacles, max_potential, min_pot
 
     # 正規化
     potential_field = (potential_field - np.min(potential_field)) / (np.max(potential_field) - np.min(potential_field))
-    
+
     return potential_field * 2 - 1  # [-1, 1] にスケーリング
 
 def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
@@ -137,70 +139,48 @@ def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
             break
     else:
         print("最大試行回数に達しました。")
-    
+
     return path
 
 def plot_environment(grid, start, goal, obstacles, output_path):
-
-    # 行列のサイズを取得
-    height, width = grid.shape
-
-    # 図と軸を作成(行列サイズに合わせたピクセル数を設定)
-    dpi = 100  # 解像度を設定
-    fig = plt.figure(figsize=(width / dpi, height / dpi), dpi=dpi)
-
-    # 環境マップを描画
-    ax = fig.add_axes([0, 0, 1, 1])  # 余白なしでプロット
+    """環境マップをプロットして保存"""
+    fig, ax = plt.subplots(figsize=(5, 5))
     ax.imshow(grid, cmap="gray_r", origin="lower")
     ax.scatter(start[1], start[0], color='green', label='Start', s=100, edgecolor='black')
     ax.scatter(goal[1], goal[0], color='red', label='Goal', s=100, edgecolor='black')
     for obs in obstacles:
         ax.scatter(obs[1], obs[0], color='black', s=10)  # 障害物をプロット
-    ax.axis("off")  # 軸を非表示にする
-
-    # 画像として保存(余白なし)
-    fig.savefig(output_path, dpi=dpi, bbox_inches="tight", pad_inches=0)
-
-    # 後処理
-    plt.close(fig)
+    ax.axis("off")
+    resize_and_save(fig, output_path)
 
 def plot_potential_field(potential_field, output_path, cmap="jet"):
-
-    # 行列のサイズを取得
-    height, width = potential_field.shape
-
-    # 図と軸を作成(行列サイズに合わせたピクセル数を設定)
-    dpi = 100  # 解像度を設定
-    fig = plt.figure(figsize=(width / dpi, height / dpi), dpi=dpi)
-
-    # ヒートマップを描画
-    ax = fig.add_axes([0, 0, 1, 1])  # 余白なしでプロット
-    ax.imshow(potential_field, cmap=cmap, origin="lower", interpolation="none")  # 1:1でピクセルマッピング
-    ax.axis("off")  # 軸を非表示にする
-
-    # 画像として保存(余白なし)
-    fig.savefig(output_path, dpi=dpi, bbox_inches="tight", pad_inches=0)
-
-    # 後処理
-    plt.close(fig)
+    """ポテンシャルフィールドをプロットして保存"""
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.imshow(potential_field, cmap=cmap, origin="lower", interpolation="none")
+    ax.axis("off")
+    resize_and_save(fig, output_path)
 
 def plot_pathplan(potential_field, start, goal, path, output_path):
+    """ポテンシャルフィールド上の経路計画をプロットして保存"""
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.imshow(potential_field, cmap="jet", origin="lower")
+    ax.plot([p[1] for p in path], [p[0] for p in path], marker='o', color='black', label='Path')
+    ax.scatter(start[1], start[0], color='green', label='Start', s=100, edgecolor='black')
+    ax.scatter(goal[1], goal[0], color='red', label='Goal', s=100, edgecolor='black')
+    ax.legend()
+    ax.axis("off")
+    resize_and_save(fig, output_path)
 
-    plt.figure(figsize=(10, 10))
-    # plt.imshow(potential_field, cmap="coolwarm", origin="lower")
-    plt.imshow(potential_field, cmap="jet", origin="lower")
-    plt.colorbar(label="Potential Value")
+def resize_and_save(fig, output_path, target_size=(256, 256)):
 
-    # 経路をプロット
-    if path:
-        path = np.array(path)
-        plt.plot(path[:, 1], path[:, 0], marker='o', color='black', label='Path')
-
-    plt.title("Potential Field with Start and Goal")
-    plt.legend()
-    plt.savefig(output_path, bbox_inches="tight", pad_inches=0)
-
-    plt.show()
+    temp_path = './temp.png'
+    # 一時保存用のファイル
+    fig.savefig(temp_path, dpi=100, bbox_inches="tight", pad_inches=0)
+    plt.close(fig)
+    # リサイズして保存
+    with Image.open(temp_path) as img:
+        img_resized = img.resize(target_size, Image.Resampling.LANCZOS)  
+        img_resized.save(output_path)
 
 if __name__=='__main__':
 
@@ -217,7 +197,7 @@ if __name__=='__main__':
     max_potential = 1.0
     min_potential = -1.0
     sigma = 0.5 # ポテンシャルの広がりを調整するパラメータ
-    
+
     # ロボットの移動パラメータ
     step_size = 1.0  # ロボットのステップサイズ
     tolerance = 0.5  # ゴールに到達する許容距離
@@ -230,10 +210,13 @@ if __name__=='__main__':
         out_path = "./plan_" + str(i) + ".png" # 計画した経路の保存パス
 
         grid, start, goal, obstacles = generate_map(map_size, obstacle_count, large_obstacle_count, large_obstacle_size, safe_distance) # 環境マップを作成
+        s_t = time()
         potential_field = compute_potential_field(grid, start, goal, obstacles, max_potential, min_potential, sigma) # ポテンシャルフィールドを計算
+        e_t = time()
+        print(f"time: {e_t - s_t}")
         path = plan_path(potential_field, start, goal, map_size, step_size, tolerance) # 経路計画
 
-        plot_environment(grid, start, goal, obstacles, map_path) # 環境マップを可視化 
+        plot_environment(grid, start, goal, obstacles, map_path) # 環境マップを可視化
         plot_potential_field(potential_field, pot_path) # ポテンシャルフィールドを可視化
         plot_pathplan(potential_field, start, goal, path, out_path) # ヒートマップの表示と経路を可視化
 

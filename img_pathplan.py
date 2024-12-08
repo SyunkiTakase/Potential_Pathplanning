@@ -9,6 +9,7 @@ def load_potential_field_from_heatmap(image_path, cmap_name="jet", vmin=-1, vmax
 
     # ヒートマップ画像を読み込み
     image = Image.open(image_path).convert("RGB")
+    image = image.resize((50, 50), Image.Resampling.LANCZOS)  
     image_data = np.array(image)
 
     # カラーマップを取得
@@ -24,10 +25,21 @@ def load_potential_field_from_heatmap(image_path, cmap_name="jet", vmin=-1, vmax
 
     # ピクセルをスキャンしてポテンシャル値に変換
     field = np.zeros((image_data.shape[0], image_data.shape[1]))
+
+    # キャッシュを用意して計算を効率化
+    cache = {}
+
+    def find_closest_color(color):
+        if color in cache:
+            return cache[color]
+        closest_color = min(color_to_value.keys(), key=lambda c: np.sum((np.array(c) - np.array(color)) ** 2))
+        cache[color] = color_to_value[closest_color]
+        return cache[color]
+
     for x in range(image_data.shape[0]):
         for y in range(image_data.shape[1]):
             color = tuple(image_data[x, y])
-            field[x, y] = color_to_value[color]
+            field[x, y] = find_closest_color(color)
 
     field = np.flipud(field)
 
@@ -35,9 +47,9 @@ def load_potential_field_from_heatmap(image_path, cmap_name="jet", vmin=-1, vmax
 
 def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
 
-    current_position = np.array(start, dtype=float) # 現在位置
-    path = [start] # 経路
-    velocity = np.array([0.0, 0.0]) # 速度
+    current_position = np.array(start, dtype=float)  # 現在位置
+    path = [start]  # 経路
+    velocity = np.array([0.0, 0.0])  # 速度
     max_iterations = 1000  # 最大試行回数
 
     for _ in range(max_iterations):
@@ -47,16 +59,16 @@ def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
             break
 
         # 現在位置の勾配を計算
-        x, y = int(current_position[0]), int(current_position[1]) # 現在位置のx,y座標
-        grad_x = potential_field[min(x + 1, map_size - 1), y] - potential_field[max(x - 1, 0), y] # x方向の勾配
-        grad_y = potential_field[x, min(y + 1, map_size - 1)] - potential_field[x, max(y - 1, 0)] # y方向の勾配
-        gradient = np.array([grad_x, grad_y]) # 勾配
+        x, y = int(current_position[0]), int(current_position[1])  # 現在位置のx,y座標
+        grad_x = potential_field[min(x + 1, map_size - 1), y] - potential_field[max(x - 1, 0), y]  # x方向の勾配
+        grad_y = potential_field[x, min(y + 1, map_size - 1)] - potential_field[x, max(y - 1, 0)]  # y方向の勾配
+        gradient = np.array([grad_x, grad_y])  # 勾配
 
         # 速度と位置の更新
-        acceleration = -gradient / np.linalg.norm(gradient + 1e-5) # 単位時間あたりの加速度
-        velocity = velocity * 0.9 + acceleration # 単位時間あたりの速度
-        velocity = velocity / np.linalg.norm(velocity + 1e-5) * step_size # 単位時間あたりの位置
-        current_position += velocity # 移動後の位置を算出
+        acceleration = -gradient / np.linalg.norm(gradient + 1e-5)  # 単位時間あたりの加速度
+        velocity = velocity * 0.9 + acceleration  # 単位時間あたりの速度
+        velocity = velocity / np.linalg.norm(velocity + 1e-5) * step_size  # 単位時間あたりの位置
+        current_position += velocity  # 移動後の位置を算出
 
         # 境界条件を適用
         current_position = np.clip(current_position, 0, map_size - 1)
@@ -68,54 +80,39 @@ def plan_path(potential_field, start, goal, map_size, step_size, tolerance):
             break
     else:
         print("最大試行回数に達しました。")
-    
+
     return path
 
 def plot_pathplan(potential_field, start, goal, path=None):
-
     plt.figure(figsize=(10, 10))
-    # plt.imshow(potential_field, cmap="coolwarm", origin="lower")
     plt.imshow(potential_field, cmap="jet", origin="lower")
     plt.colorbar(label="Potential Value")
-
-    # 経路をプロット
     if path:
         path = np.array(path)
         plt.plot(path[:, 1], path[:, 0], marker='o', color='black', label='Path')
-
-    plt.title("Potential Field with Start and Goal")
+    plt.scatter(start[1], start[0], color='green', label='Start', s=100, edgecolor='black')
+    plt.scatter(goal[1], goal[0], color='red', label='Goal', s=100, edgecolor='black')
+    plt.title("Potential Field with Path")
     plt.legend()
     plt.show()
 
-if __name__=='__main__':
-
-    # 環境マップの設定
-    map_size = 50  # マップのサイズ
-    obstacle_count = 5  # 小さめの障害物の数
-    large_obstacle_count = 10 # 大きめの障害物の数
-    large_obstacle_size = 3 # 大きめの障害物のサイズ
-    safe_distance = 5
-
-    # ポテンシャルフィールドの設定
+if __name__ == '__main__':
+    # パラメータ設定
+    map_size = 50
+    step_size = 1.0
+    tolerance = 0.5
     max_potential = 1.0
     min_potential = -1.0
-    sigma = 0.5
-    
-    # ロボットの移動パラメータ
-    step_size = 1.0  # ロボットのステップサイズ
-    tolerance = 0.5  # ゴールに到達する許容距離
 
-    start = (37, 35)
-    goal = (34, 41)
+    # 開始位置とゴール位置
+    start = (11, 18)
+    goal = (38, 31)
 
-    image_path = "pot_0.png" # 保存したヒートマップ画像のパス
+    image_path = "pot_0.png"  # 保存されたヒートマップ画像
     recovered_potential_field = load_potential_field_from_heatmap(image_path, vmin=min_potential, vmax=max_potential)
 
-    # ポテンシャルフィールドを保存（テキスト形式）
-    # path_w = 'pot2.txt'
-    # with open(path_w, mode='w') as f:
-    #     f.write(np.array2string(recovered_potential_field))
+    # 経路計画
+    path = plan_path(recovered_potential_field, start, goal, map_size, step_size, tolerance)
 
-    path = plan_path(recovered_potential_field, start, goal, map_size, step_size, tolerance) # 経路計画
-    print(path)
-    plot_pathplan(recovered_potential_field, start, goal, path) # ヒートマップの表示と経路を可視化
+    # プロット
+    plot_pathplan(recovered_potential_field, start, goal, path)
