@@ -1,4 +1,4 @@
-# Potential_Pathplanning
+# Potentialfield_Pathplanning
 ポテンシャルフィールド法による経路計画
 
 ## ファイル一覧
